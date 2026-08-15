@@ -6,8 +6,12 @@ const DEFAULT_STATE = {
   menubar: true,
   render: {
     visible: true,
-    basePct: 37,         // percentage at the moment runningSince was set
-    rate: 1.4,           // percent per second while running
+    basePct: 66,         // percentage at the moment runningSince was set
+    // The bar's position on camera is pinned by the cues, not by the clock —
+    // each cue jumps it to its mark, so a take can run long or short without
+    // the progress drifting off. This rate is only the creep in between, slow
+    // enough that the chunk easing in displayPct() does the visible work.
+    rate: 0.08,          // percent per second while running
     runningSince: null,  // epoch ms, or null when paused
     paused: true,
     stalled: false,      // frozen bar, clock keeps ticking
@@ -51,10 +55,14 @@ const DEFAULT_STATE = {
 const CUES = [
   {
     label: 'Renderizando',
-    hint: 'Comienza a subir la barra de progreso',
+    hint: 'arranca en 66% y sube lento',
+    // The `pct` on every render.set below is the internal value; the bar shows
+    // it warped by displayPct(), so these are chosen for what ends up on
+    // screen: 66 -> 66%, 74 -> 75%, 84 -> 84%, 100 -> 99% (its hard ceiling).
     cmds: [
       { cmd: 'reset' },
-      { cmd: 'render.set', pct: 12 },
+      { cmd: 'render.rate', rate: 0.08 },
+      { cmd: 'render.set', pct: 66 },
       { cmd: 'render.play' },
     ],
   },
@@ -62,6 +70,7 @@ const CUES = [
     label: 'Batería 32%',
     hint: 'salta a 32% + glitch fuerte',
     cmds: [
+      { cmd: 'render.set', pct: 74 },   // barra 75%
       { cmd: 'power.set', pct: 32 },
       { cmd: 'glitch.set', on: false },
       { cmd: 'glitch.burst', intensity: 3, ms: 2600 },
@@ -69,8 +78,9 @@ const CUES = [
   },
   {
     label: 'Batería 17%',
-    hint: 'salta a 17% + glitch corto',
+    hint: 'salta a 17% + glitch corto, barra 84%',
     cmds: [
+      { cmd: 'render.set', pct: 84 },   // barra 84%
       { cmd: 'power.set', pct: 17 },
       { cmd: 'glitch.set', on: false },
       { cmd: 'glitch.burst', intensity: 2, ms: 900 },
@@ -84,10 +94,14 @@ const CUES = [
   {
     label: 'Batería MODAL',
     hint: 'alerta de batería baja',
-    // Wakes the screen first, so the modal is visible even if nobody moved
-    // the mouse after the fade.
+    // Everything is set behind the blackout, so the screen wakes straight into
+    // its final reading: bar at its 99% ceiling, battery stopped at 1%. The
+    // black is lifted here too, in case nobody moved the mouse after the fade.
     cmds: [
+      { cmd: 'render.set', pct: 100 },  // barra 99% (tope)
       { cmd: 'black', on: false, fadeMs: 220 },
+      { cmd: 'power.set', pct: 1 },
+      { cmd: 'power.drain', on: false },
       { cmd: 'battery', style: 'modal' },
     ],
   },
