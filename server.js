@@ -83,6 +83,20 @@ function apply(msg) {
     case 'render.set': // absolute jump
       r.basePct = clampPct(Number(msg.pct));
       r.runningSince = now;
+      r.catchUp = null;  // an absolute jump overrides any pending catch-up
+      ensureElapsedRunning(now);
+      break;
+
+    // Ramp up to a mark and then carry on at the normal rate — the smooth
+    // alternative to render.set when the move happens on camera.
+    case 'render.catchup':
+      settle(now);
+      r.catchUp = {
+        to: clampPct(Number(msg.to)),
+        rate: Math.max(0, Number(msg.rate) || 0),
+      };
+      r.paused = false;
+      r.stalled = false;
       ensureElapsedRunning(now);
       break;
 

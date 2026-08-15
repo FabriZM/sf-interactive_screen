@@ -51,9 +51,24 @@ function renderCue() {
   ).join('');
 }
 
+// Fire one cue. A command carrying `at` is held back that many ms, for beats
+// that have to land *inside* a cue rather than on the tap — the jump hidden
+// behind the fade. Same-delay commands still travel as one POST.
+function fireCue(cmds) {
+  const groups = new Map();
+  for (const { at = 0, ...cmd } of cmds) {
+    if (!groups.has(at)) groups.set(at, []);
+    groups.get(at).push(cmd);
+  }
+  for (const [at, batch] of groups) {
+    if (at > 0) setTimeout(() => send(batch), at);
+    else send(batch);
+  }
+}
+
 $('cue').addEventListener('click', () => {
   if (cueIndex >= CUES.length) return;
-  send(CUES[cueIndex].cmds);
+  fireCue(CUES[cueIndex].cmds);
   cueIndex++;
   renderCue();
 });

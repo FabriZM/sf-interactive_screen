@@ -7,11 +7,15 @@ const DEFAULT_STATE = {
   render: {
     visible: true,
     basePct: 66,         // percentage at the moment runningSince was set
-    // The bar's position on camera is pinned by the cues, not by the clock —
-    // each cue jumps it to its mark, so a take can run long or short without
-    // the progress drifting off. This rate is only the creep in between, slow
-    // enough that the chunk easing in displayPct() does the visible work.
-    rate: 0.08,          // percent per second while running
+    // The bar only ever creeps on camera — no cue moves it while it's visible.
+    // Paced so 66% at the start reads ~93% two minutes in, when cue 3 lands;
+    // the chunk easing in displayPct() does the visible work.
+    rate: 0.218,         // percent per second while running
+    // A one-shot "catch up to this mark, then carry on creeping": while the
+    // bar is below `to` it climbs at `rate` instead, so a cue can put it on a
+    // mark without teleporting. Goes inert on its own once the mark is passed,
+    // so a cue that fires late never drags the bar backwards.
+    catchUp: null,       // { to, rate } | null
     runningSince: null,  // epoch ms, or null when paused
     paused: true,
     stalled: false,      // frozen bar, clock keeps ticking
@@ -56,12 +60,12 @@ const CUES = [
   {
     label: 'Renderizando',
     hint: 'arranca en 66% y sube lento',
-    // The `pct` on every render.set below is the internal value; the bar shows
-    // it warped by displayPct(), so these are chosen for what ends up on
-    // screen: 66 -> 66%, 74 -> 75%, 84 -> 84%, 100 -> 99% (its hard ceiling).
+    // The percentages below are internal values; the bar shows them warped by
+    // displayPct(), so they're chosen for what ends up on screen:
+    // 66 -> 66%, 100 -> 99% (its hard ceiling).
     cmds: [
       { cmd: 'reset' },
-      { cmd: 'render.rate', rate: 0.08 },
+      { cmd: 'render.rate', rate: 0.218 },
       { cmd: 'render.set', pct: 66 },
       { cmd: 'render.play' },
     ],
@@ -70,7 +74,6 @@ const CUES = [
     label: 'Batería 32%',
     hint: 'salta a 32% + glitch fuerte',
     cmds: [
-      { cmd: 'render.set', pct: 74 },   // barra 75%
       { cmd: 'power.set', pct: 32 },
       { cmd: 'glitch.set', on: false },
       { cmd: 'glitch.burst', intensity: 3, ms: 2600 },
@@ -78,9 +81,10 @@ const CUES = [
   },
   {
     label: 'Batería 17%',
-    hint: 'salta a 17% + glitch corto, barra 84%',
+    hint: 'salta a 17% + glitch corto',
+    // Lands ~2 min in, where the creep has the bar at ~93% on its own — the
+    // cue doesn't touch it, so nothing jumps while the screen is visible.
     cmds: [
-      { cmd: 'render.set', pct: 84 },   // barra 84%
       { cmd: 'power.set', pct: 17 },
       { cmd: 'glitch.set', on: false },
       { cmd: 'glitch.burst', intensity: 2, ms: 900 },
@@ -89,16 +93,19 @@ const CUES = [
   {
     label: 'Fade screen',
     hint: 'sleep — el mouse la despierta',
-    cmds: [{ cmd: 'black', on: true, fadeMs: 1400, wake: true }],
+    cmds: [
+      { cmd: 'black', on: true, fadeMs: 1400, wake: true },
+      // The one jump in the whole list, held a second so the fade hides it.
+      { cmd: 'render.set', pct: 100, at: 1500 },   // barra 99% (tope)
+    ],
   },
   {
     label: 'Batería MODAL',
     hint: 'alerta de batería baja',
-    // Everything is set behind the blackout, so the screen wakes straight into
+    // The battery is set behind the blackout, so the screen wakes straight into
     // its final reading: bar at its 99% ceiling, battery stopped at 1%. The
     // black is lifted here too, in case nobody moved the mouse after the fade.
     cmds: [
-      { cmd: 'render.set', pct: 100 },  // barra 99% (tope)
       { cmd: 'black', on: false, fadeMs: 220 },
       { cmd: 'power.set', pct: 1 },
       { cmd: 'power.drain', on: false },
@@ -118,6 +125,17 @@ function currentPct(render, now = Date.now()) {
     return clampPct(render.basePct);
   }
   const secs = (now - render.runningSince) / 1000;
+
+  // Catch-up leg: climb fast until the mark, then hand back to the normal
+  // rate from there. Piecewise like this rather than a timer, so it survives
+  // a reload and stays identical on every screen.
+  const c = render.catchUp;
+  if (c && c.rate > 0 && render.basePct < c.to) {
+    const legSecs = (c.to - render.basePct) / c.rate;
+    if (secs < legSecs) return clampPct(render.basePct + secs * c.rate);
+    return clampPct(c.to + (secs - legSecs) * render.rate);
+  }
+
   return clampPct(render.basePct + secs * render.rate);
 }
 
