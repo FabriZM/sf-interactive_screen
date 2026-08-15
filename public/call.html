@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <meta name="theme-color" content="#000000">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
 <title>Teléfono</title>
 <link rel="stylesheet" href="/call.css">
 </head>
@@ -15,8 +18,8 @@
 <!-- The blurred contact photo behind everything, the way iOS backs a call. -->
 <div id="wall" class="wall"></div>
 
-<!-- Fake iOS status bar. Hidden when the page runs from the home screen,
-     because there the real one is already showing over the top of it. -->
+<!-- Fake iOS status bar. Hidden when the page runs from the home screen
+     without fullscreen, because there the system draws its own over it. -->
 <div id="sb" class="sb">
   <span id="sb-time">—</span>
   <span class="sb-right">
@@ -69,25 +72,14 @@
 <!-- proximidad: la pantalla se apaga contra la oreja --------------------- -->
 <div id="dark" class="dark"></div>
 
-<!-- ajustes: sólo con el teléfono en reposo, nunca durante una toma ------ -->
-<div id="setup" class="setup">
-  <h1>Teléfono ANTI</h1>
-  <button id="pickbtn" class="pick">
-    <span class="avatar"><span class="mono"></span><img alt=""></span>
-    <b>Foto del contacto</b>
-    <small>de la fototeca de este teléfono</small>
-  </button>
-  <input id="pick" type="file" accept="image/*" hidden>
-  <label class="field"><span>Nombre</span><input id="f-name" type="text" maxlength="40" autocomplete="off"></label>
-  <label class="field"><span>Debajo</span><input id="f-sub" type="text" maxlength="40" autocomplete="off"></label>
-  <div class="row">
-    <button id="ringtone" class="tog">Tono</button>
-    <button id="hide">Ocultar</button>
+<!-- en reposo: negro. El aviso se va solo y no vuelve durante una toma --- -->
+<div id="idle" class="idle">
+  <div class="hint">
+    <b>Teléfono listo</b>
+    <span>La llamada se maneja desde el control.</span>
+    <span class="tap">Tocá la pantalla una vez: pantalla completa y permiso
+      para el tono.</span>
   </div>
-  <button id="ring" class="primary">Sonar ahora</button>
-  <p class="note">El operador también lanza y corta la llamada desde el
-    control. Poné el bloqueo automático en <b>Nunca</b> y agregá esta página
-    a la pantalla de inicio para que no se vea el navegador.</p>
 </div>
 
 <div id="dot" class="conn-dot"></div>

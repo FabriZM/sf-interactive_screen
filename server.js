@@ -19,6 +19,8 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',   // Android won't read a
+  '.webmanifest': 'application/manifest+json',  // manifest served as bytes
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -31,6 +33,12 @@ const MIME = {
 
 let state = structuredClone(DEFAULT_STATE);
 const clients = new Set();
+
+// The contact photo for the call screen, picked on the remote. It lives here
+// as bytes and is served from /photo rather than carried in the state — a
+// data URL in every SSE message would re-send the whole photo on every
+// battery tick. Only state.call.photoV travels, so the phone knows to reload.
+let photo = null;   // { mime, buf } | null
 
 function broadcast() {
   const payload = `data: ${JSON.stringify(state)}\n\n`;
@@ -73,10 +81,10 @@ function apply(msg) {
       // — cue 1 resets before every take and must not wipe it. Who's calling
       // and how fast the phone blanks are set up the same way, once.
       const keptClock = state.clock;
-      const { name, sub, proxDelayMs } = state.call;
+      const { name, sub, proxDelayMs, tone, photoV } = state.call;
       state = structuredClone(DEFAULT_STATE);
       state.clock = keptClock;
-      Object.assign(state.call, { name, sub, proxDelayMs });
+      Object.assign(state.call, { name, sub, proxDelayMs, tone, photoV });
       break;
     }
 
@@ -224,6 +232,10 @@ function apply(msg) {
       if (typeof msg.sub === 'string') c.sub = msg.sub.slice(0, 40);
       break;
 
+    case 'call.tone':
+      c.tone = !!msg.on;
+      break;
+
     case 'call.prox':
       if ('prox' in msg) {
         c.prox = ['auto', 'near', 'far'].includes(msg.prox) ? msg.prox : 'auto';
@@ -318,6 +330,44 @@ const server = http.createServer((req, res) => {
         res.writeHead(400).end('Bad JSON');
       }
     });
+    return;
+  }
+
+  // The contact photo, in and out. Its own endpoint rather than a command:
+  // it's a file, and it must not travel with the state.
+  if (req.method === 'POST' && pathname === '/photo') {
+    let body = '';
+    req.on('data', (c) => {
+      body += c;
+      if (body.length > 3e6) req.destroy();   // ~2MB of image, generously
+    });
+    req.on('end', () => {
+      const trimmed = body.trim();
+      if (!trimmed) {                          // empty body clears it
+        photo = null;
+        state.call.photoV = 0;
+      } else {
+        const m = /^data:(image\/[a-z0-9+.-]+);base64,([A-Za-z0-9+/=]+)$/.exec(trimmed);
+        if (!m) {
+          res.writeHead(400).end('Bad image');
+          return;
+        }
+        photo = { mime: m[1], buf: Buffer.from(m[2], 'base64') };
+        state.call.photoV++;
+      }
+      broadcast();
+      res.writeHead(204).end();
+    });
+    return;
+  }
+
+  if (pathname === '/photo') {
+    if (!photo) {
+      res.writeHead(404).end('No photo');
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': photo.mime, 'Cache-Control': 'no-store' });
+    res.end(photo.buf);
     return;
   }
 

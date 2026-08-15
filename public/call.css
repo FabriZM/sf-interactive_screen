@@ -268,81 +268,39 @@ body[data-status='ringing'] #answer { animation: breathe 1.9s ease-in-out infini
 }
 .dark.on { opacity: 1; pointer-events: auto; }
 
-/* --------------------------------------------------------------- ajustes */
+/* -------------------------------------------------------------- en reposo */
 
-.setup {
+/* An idle phone is black — that's what one looks like in frame, and it's the
+   safe thing to have there. The note is only for whoever sets it down. */
+.idle {
   position: fixed;
   inset: 0;
   z-index: 60;
   display: none;
+  place-items: center;
+  padding: 32px;
+  background: #000;
+}
+body[data-status='idle'] .idle { display: grid; }
+
+.idle .hint {
+  display: flex;
   flex-direction: column;
-  gap: 12px;
-  overflow-y: auto;
-  padding: calc(env(safe-area-inset-top) + 26px) 20px calc(env(safe-area-inset-bottom) + 26px);
-  background: #0e0e12;
-}
-body[data-status='idle'].setup-open .setup { display: flex; }
-
-.setup h1 {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: #6e6e7e;
-  margin-bottom: 4px;
-}
-
-.setup button, .setup input {
-  font: inherit;
-  font-size: 16px;
-  color: #e9e9ef;
-  background: #1e1e26;
-  border: 1px solid #2c2c38;
-  border-radius: 12px;
-  min-height: 54px;
-}
-.setup button:active { background: #2b2b36; }
-.setup .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.setup .primary {
-  background: linear-gradient(160deg, #5b5bd6, #3f3fa8);
-  border: none;
-  font-size: 18px;
-  font-weight: 600;
-  min-height: 62px;
-}
-.setup .tog.on { background: #5b5bd6; border-color: #6f6fe6; color: #fff; }
-
-.pick {
-  display: grid;
-  grid-template-columns: 54px 1fr;
-  align-items: center;
-  gap: 4px 14px;
-  padding: 12px 14px;
-  text-align: left;
-}
-.pick .avatar { grid-row: span 2; width: 54px; height: 54px; box-shadow: none; }
-.pick .avatar .mono { font-size: 22px; }
-.pick b { font-size: 15px; font-weight: 600; align-self: end; }
-.pick small { font-size: 12.5px; color: #7a7a88; align-self: start; }
-
-.field { display: flex; align-items: center; gap: 12px; }
-.field span {
-  flex: none;
-  width: 62px;
-  font-size: 11px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: #6e6e7e;
-}
-.field input { flex: 1; min-width: 0; padding: 8px 14px; }
-
-.setup .note {
-  margin-top: 2px;
-  font-size: 12.5px;
-  line-height: 1.5;
+  gap: 7px;
+  max-width: 30ch;
+  padding: 18px 22px;
+  border-radius: 14px;
+  background: #14141a;
+  border: 1px solid #23232c;
   color: #7a7a88;
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-align: center;
+  transition: opacity .6s;
 }
-.setup .note b { color: #a9a9ba; font-weight: 600; }
+.idle .hint b { color: #e9e9ef; font-size: 15px; font-weight: 600; }
+.idle .hint .tap { color: #8f8ff2; }
+.idle.ready .hint { opacity: 0; }
 
 /* Connection dot, same as the laptop screen: too small to read on camera. */
 .conn-dot {

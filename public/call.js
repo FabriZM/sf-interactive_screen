@@ -1,6 +1,7 @@
-/* The actor's phone. Pure renderer like screen.js: the server owns the call,
-   this draws it — plus the two taps the actor makes on camera, answer and
-   hang up, which go back to the server so the remote stays in step. */
+/* The actor's phone. Pure renderer like screen.js: the server owns the call
+   and the remote sets it up, this only draws it — plus the taps the actor
+   makes on camera (answer, hang up, screen off the ear), which go back to
+   the server so the remote stays in step. */
 
 // ---- Copy you may want to retype between takes -------------------------
 const PHONE = {
@@ -63,104 +64,86 @@ function buildPad() {
 
 // --------------------------------------------------------------- contacto
 
-const LS_PHOTO = 'detour.contacto';
-
-function initials(name) {
-  const words = String(name).trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return '?';
-  return (words[0][0] + (words.length > 1 ? words[1][0] : '')).toUpperCase();
+function usePhoto(url) {
+  document.body.classList.toggle('photo', !!url);
+  for (const img of $$('.avatar img')) img.src = url || '';
+  $('wall').style.backgroundImage = url ? `url("${url}")` : '';
 }
 
-function usePhoto(dataURL) {
-  document.body.classList.toggle('photo', !!dataURL);
-  for (const img of $$('.avatar img')) img.src = dataURL || '';
-  $('wall').style.backgroundImage = dataURL ? `url(${dataURL})` : '';
-}
-
-function loadPhoto() {
-  const stored = localStorage.getItem(LS_PHOTO);
-  if (stored) {
-    usePhoto(stored);
-    return;
-  }
-  // Fall back to a photo dropped into assets/ before the shoot, either
-  // extension — no build step means no way to know which one is there.
+// A photo dropped into assets/ before the shoot, either extension — no build
+// step means no way to know which one is there.
+function probeAssets() {
   let i = 0;
   const names = ['/assets/contacto.jpg', '/assets/contacto.png'];
   const probe = new Image();
-  probe.onload = () => usePhoto(probe.src);
+  probe.onload = () => { if (shownPhotoV === 0) usePhoto(probe.src); };
   probe.onerror = () => { if (++i < names.length) probe.src = names[i]; };
   probe.src = names[0];
 }
 
-// A camera-roll photo is far too big for localStorage, and far bigger than a
-// phone screen needs — square-crop it and knock it down on the way in.
-function shrink(file, size = 720) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const side = Math.min(img.width, img.height);
-        const out = Math.min(size, side);
-        const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = out;
-        canvas.getContext('2d').drawImage(
-          img,
-          (img.width - side) / 2, (img.height - side) / 2, side, side,
-          0, 0, out, out
-        );
-        resolve(canvas.toDataURL('image/jpeg', 0.86));
-      };
-      img.src = String(reader.result);
-    };
-    reader.readAsDataURL(file);
-  });
+// The photo is picked on the remote and served from /photo; the version in
+// the state is the only thing that travels, and it's what tells us to
+// reload. Nothing to do until it changes.
+let shownPhotoV = null;
+
+function loadPhoto(v) {
+  if (v === shownPhotoV) return;
+  shownPhotoV = v;
+  if (v > 0) {
+    usePhoto(`/photo?v=${v}`);
+    return;
+  }
+  usePhoto(null);
+  probeAssets();
 }
 
-// ----------------------------------------------------------------- ajustes
+// ------------------------------------------------- fullscreen / en reposo
 
-$('pickbtn').addEventListener('click', () => $('pick').click());
-
-$('pick').addEventListener('change', async () => {
-  const file = $('pick').files?.[0];
-  if (!file) return;
-  const url = await shrink(file).catch(() => null);
-  if (!url) return;
+// Android hides its system bars for a page that asks, which is the whole
+// difference between a prop and a browser window on camera. iOS Safari has
+// no such API — there the answer is Share → Add to Home Screen, and the
+// manifest/meta tags above cover both.
+async function goFullscreen() {
   try {
-    localStorage.setItem(LS_PHOTO, url);
+    await document.documentElement.requestFullscreen?.({ navigationUI: 'hide' });
   } catch {
-    // Storage full — the photo still holds for this session.
+    // Denied, or iOS. Harmless.
   }
-  usePhoto(url);
-});
+  try {
+    await screen.orientation?.lock?.('portrait');   // a phone prop is portrait
+  } catch {
+    // Not allowed outside fullscreen on some builds. Also harmless.
+  }
+  syncChrome();
+}
 
-// Typing the contact goes to the server, so the remote shows who is calling.
-const pushWho = () => send({ cmd: 'call.who', name: $('f-name').value, sub: $('f-sub').value });
-$('f-name').addEventListener('change', pushWho);
-$('f-sub').addEventListener('change', pushWho);
+// Whether to draw our own status bar: only when nothing else is drawing one.
+// Installed to the home screen without fullscreen, the system puts its real
+// bar on top of the page and ours would be a second one.
+function syncChrome() {
+  const mode = (m) => window.matchMedia(`(display-mode: ${m})`).matches;
+  const full = !!document.fullscreenElement || mode('fullscreen');
+  const installed = navigator.standalone || mode('standalone') || mode('minimal-ui');
+  document.body.classList.toggle('standalone', installed && !full);
+}
+document.addEventListener('fullscreenchange', syncChrome);
 
-$('ring').addEventListener('click', () => send({ cmd: 'call.ring' }));
-$('hide').addEventListener('click', (e) => {
-  e.stopPropagation();   // or the tap-to-reopen handler below undoes this
-  document.body.classList.remove('setup-open');
-});
-
-// A dark idle phone is the safe thing to have in frame; tapping it brings
-// the settings back between takes.
+// One tap on the idle phone does the two things that need a user gesture:
+// go fullscreen, and buy the right to make a sound later. After it, the
+// hint gets out of the way and the phone is just black.
 document.addEventListener('click', () => {
-  if (state.call.status === 'idle') document.body.classList.add('setup-open');
+  if (state.call.status !== 'idle') return;
+  unlockAudio();
+  goFullscreen();
+  $('idle').classList.add('ready');
 });
 
 // ------------------------------------------------------------------ tono
 
 // A ringtone with no audio file to ship: a four-note figure on a loop, quiet
-// enough not to fight production sound. Off by default — sound department
-// gets a say — and it dies the instant the call is answered.
-const LS_RING = 'detour.tono';
-let ringOn = localStorage.getItem(LS_RING) === '1';
+// enough not to fight production sound. Switched from the remote, off by
+// default — sound department gets a say — and it dies the instant the call
+// is answered.
 let actx = null;
 let ringTimer = null;
 
@@ -195,7 +178,7 @@ function ringPhrase() {
 }
 
 function ringPulse() {
-  if (ringOn) ringPhrase();
+  if (state.call.tone) ringPhrase();
   navigator.vibrate?.([700, 400]);   // Android buzzes; iOS ignores this
 }
 
@@ -213,17 +196,10 @@ function ringing(on) {
     navigator.vibrate?.(0);
     return;
   }
-  if (ringOn) unlockAudio();
+  if (state.call.tone) unlockAudio();
   ringPulse();
   ringTimer = setInterval(ringPulse, 2600);
 }
-
-$('ringtone').addEventListener('click', () => {
-  ringOn = !ringOn;
-  localStorage.setItem(LS_RING, ringOn ? '1' : '0');
-  $('ringtone').classList.toggle('on', ringOn);
-  if (ringOn) { unlockAudio(); ringPhrase(); }
-});
 
 // ------------------------------------------------------------------ taps
 
@@ -263,9 +239,7 @@ function applyState() {
   for (const el of $$('.avatar .mono')) el.textContent = initials(c.name);
   for (const el of $$('.sub')) el.textContent = c.sub;
 
-  if (document.activeElement !== $('f-name')) $('f-name').value = c.name;
-  if (document.activeElement !== $('f-sub')) $('f-sub').value = c.sub;
-
+  loadPhoto(c.photoV);
   ringing(c.status === 'ringing');
   clock();
 }
@@ -324,14 +298,8 @@ function connect() {
 
 // ------------------------------------------------------------------ boot
 
-// Home-screen mode hides Safari's chrome — and iOS draws its own status bar
-// over the page, so ours has to get out of the way.
-if (navigator.standalone) document.body.classList.add('standalone');
-
+syncChrome();
 buildPad();
-loadPhoto();
-$('ringtone').classList.toggle('on', ringOn);
-document.body.classList.add('setup-open');
 $('sb-batt-fill').style.width = Math.max(6, PHONE.battery) + '%';
 for (const bar of $$('.sb-signal i')) bar.style.opacity = '.35';
 for (let i = 0; i < PHONE.signal; i++) $$('.sb-signal i')[i].style.opacity = '1';
@@ -340,6 +308,9 @@ applyState();
 connect();
 setInterval(clock, 10000);
 draw();
+
+// The hint gets out of the way on its own too, in case nobody taps it.
+setTimeout(() => $('idle').classList.add('ready'), 25000);
 
 // The phone must not lock mid-take. This only works on a secure origin, so
 // on a plain-HTTP LAN it's the belt to the README's braces: auto-lock Never.

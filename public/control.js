@@ -215,15 +215,83 @@ $('menubar').addEventListener('click', () => send({ cmd: 'menubar', on: !state.m
 pickOne('fades', 'fade', (v) => { fadeMs = Number(v); });
 $('fade').addEventListener('click', () => send({ cmd: 'black', on: true, fadeMs, wake: true }));
 
-// The actor's phone. Who's calling is set-up rather than take state, so the
-// fields are prefilled from the server once and only pushed when you hit Set.
-// Not before the first state message, or they'd fill with the defaults this
-// page starts from and quietly overwrite the real contact on the next Set.
+// ---------------------------------------------------------------- tabs
+
+for (const btn of $('tabs').children) {
+  btn.addEventListener('click', () => {
+    for (const other of $('tabs').children) other.classList.toggle('on', other === btn);
+    for (const pane of document.querySelectorAll('.pane')) {
+      pane.classList.toggle('on', pane.id === `tab-${btn.dataset.tab}`);
+    }
+    window.scrollTo(0, 0);
+  });
+}
+
+// ------------------------------------------------------- the actor's phone
+
+// Who's calling is set-up rather than take state, so the fields are prefilled
+// from the server once and only pushed when you hit Set. Not before the first
+// state message, or they'd fill with the defaults this page starts from and
+// quietly overwrite the real contact on the next Set.
 let callPrefilled = false;
+
+$('callring').addEventListener('click', () => send({ cmd: 'call.ring' }));
+$('callidle').addEventListener('click', () => send({ cmd: 'call.idle' }));
+$('tone').addEventListener('click', () => send({ cmd: 'call.tone', on: !state.call.tone }));
 
 $('callwho').addEventListener('click', () =>
   send({ cmd: 'call.who', name: $('callname').value, sub: $('callsub').value })
 );
+
+// The contact photo goes to its own endpoint, not through the state — see
+// the note on /photo in server.js.
+function sendPhoto(dataURL) {
+  return fetch('/photo', { method: 'POST', body: dataURL }).catch(() => {});
+}
+
+// A camera-roll photo is far too big to hand around, and far bigger than a
+// phone screen needs — square-crop it and knock it down on the way in.
+function shrink(file, size = 720) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const side = Math.min(img.width, img.height);
+        const out = Math.min(size, side);
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = out;
+        canvas.getContext('2d').drawImage(
+          img,
+          (img.width - side) / 2, (img.height - side) / 2, side, side,
+          0, 0, out, out
+        );
+        resolve(canvas.toDataURL('image/jpeg', 0.86));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+$('photobtn').addEventListener('click', () => $('photofile').click());
+
+$('photofile').addEventListener('change', async () => {
+  const file = $('photofile').files?.[0];
+  if (!file) return;
+  $('photonote').textContent = 'sending…';
+  const url = await shrink(file).catch(() => null);
+  if (!url) {
+    $('photonote').textContent = "couldn't read that image";
+    return;
+  }
+  await sendPhoto(url);
+  $('photofile').value = '';   // same file twice in a row still fires change
+});
+
+$('photoclear').addEventListener('click', () => sendPhoto(''));
 
 // The blanking delay has an "off" chip, so this row can't use the numeric
 // pickOne/syncChips pair the others share.
@@ -240,6 +308,21 @@ function syncProxChips() {
     const v = chip.dataset.prox;
     chip.classList.toggle('on', delay == null ? v === 'off' : Number(v) === delay);
   }
+}
+
+// The preview follows the version in the state, so it's right on a fresh
+// reload and on a second remote — not just on the phone that uploaded it.
+let shownPhotoV = null;
+
+function syncPhoto(v) {
+  if (v === shownPhotoV) return;
+  shownPhotoV = v;
+  const has = v > 0;
+  $('photobtn').classList.toggle('has-photo', has);
+  if (has) $('photoimg').src = `/photo?v=${v}`;
+  $('photonote').textContent = has
+    ? 'tap to pick a different one'
+    : 'tap to pick one from this phone';
 }
 
 const CALL_MODE = {
@@ -318,12 +401,18 @@ function paint() {
     call.status === 'idle' ? call.name : `${call.name} · ${fmtHMS(callSecs(call))}`;
   $('callmode').textContent = dark ? 'to the ear' : CALL_MODE[call.status];
   $('callnow').parentElement.classList.toggle('custom', call.status !== 'idle');
+  document.body.classList.toggle('calling', call.status !== 'idle');
+  $('callring').querySelector('.cue-label').textContent =
+    call.status === 'idle' ? 'Ring' : 'Ring again';
+  $('tone').classList.toggle('on', call.tone);
   syncProxChips();
+  syncPhoto(call.photoV);
   if (!callPrefilled && live) {
     callPrefilled = true;
     $('callname').value = call.name;
     $('callsub').value = call.sub;
   }
+  $('photomono').textContent = initials(call.name);
 
   const custom = state.clock.mode === 'custom';
   const shown = currentClock(state.clock);

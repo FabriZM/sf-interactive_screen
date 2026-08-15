@@ -56,6 +56,11 @@ const DEFAULT_STATE = {
     // phone takes to reach the ear. null = never blank on its own.
     proxDelayMs: 1500,
     prox: 'auto',        // 'auto' | 'near' (forced dark) | 'far' (forced lit)
+    tone: false,         // ring out loud? off by default — production sound
+    // The photo itself is too big to live in the state: it would be re-sent
+    // on every battery tick. It's held by the server and fetched from /photo;
+    // this is only a version, bumped so the phone knows to reload it.
+    photoV: 0,
   },
   clock: {
     mode: 'real',        // 'real' = system clock | 'custom'
@@ -229,6 +234,13 @@ function callDark(call, now = Date.now()) {
     && now >= call.answeredAt + call.proxDelayMs;
 }
 
+// The grey-circle monogram iOS falls back to when a contact has no photo.
+function initials(name) {
+  const words = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '?';
+  return (words[0][0] + (words.length > 1 ? words[1][0] : '')).toUpperCase();
+}
+
 // What the menu-bar clock should read: the real time, or a custom one that
 // either ticks forward from where it was set or stays frozen.
 function currentClock(clock, now = Date.now()) {
@@ -243,6 +255,6 @@ function clampPct(p) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     DEFAULT_STATE, CUES, currentPct, displayPct, currentElapsedMs, currentBattery,
-    glitchActive, callSecs, callDark, currentClock, clampPct,
+    glitchActive, callSecs, callDark, initials, currentClock, clampPct,
   };
 }
