@@ -6,7 +6,7 @@ const DEFAULT_STATE = {
   menubar: true,
   render: {
     visible: true,
-    basePct: 12,         // percentage at the moment runningSince was set
+    basePct: 37,         // percentage at the moment runningSince was set
     rate: 1.4,           // percent per second while running
     runningSince: null,  // epoch ms, or null when paused
     paused: true,
@@ -20,14 +20,14 @@ const DEFAULT_STATE = {
   },
   battery: 'none',       // 'none' | 'banner' | 'modal' — which alert is showing
   power: {
-    basePct: 62,         // menu-bar battery level at runningSince
-    drainPerMin: 12,     // percent per minute while draining
+    basePct: 66,         // menu-bar battery level at runningSince
+    drainPerMin: 1,     // percent per minute while draining
     runningSince: null,
-    draining: false,
+    draining: true,
   },
   glitch: {
     on: false,           // sustained
-    intensity: 2,        // 1 | 2 | 3
+    intensity: 3,        // 1 | 2 | 3
     burstUntil: 0,       // epoch ms; a one-shot burst runs until then
   },
   // wake: true = the screen only went to sleep, so moving the mouse brings it
@@ -50,8 +50,8 @@ const DEFAULT_STATE = {
 // Each step is a list of commands sent in order.
 const CUES = [
   {
-    label: 'Render climbing',
-    hint: '12% and rising',
+    label: 'Renderizando',
+    hint: 'Comienza a subir la barra de progreso',
     cmds: [
       { cmd: 'reset' },
       { cmd: 'render.set', pct: 12 },
@@ -59,23 +59,41 @@ const CUES = [
     ],
   },
   {
-    label: 'Stall',
-    hint: 'bar freezes, clock runs',
-    cmds: [{ cmd: 'render.stall', on: true }],
+    label: 'Batería 32%',
+    hint: 'salta a 32% + glitch fuerte',
+    cmds: [
+      { cmd: 'power.set', pct: 32 },
+      { cmd: 'glitch.set', on: false },
+      { cmd: 'glitch.burst', intensity: 3, ms: 2600 },
+    ],
+  },
+  {
+    label: 'Batería 17%',
+    hint: 'salta a 17% + glitch corto',
+    cmds: [
+      { cmd: 'power.set', pct: 17 },
+      { cmd: 'glitch.set', on: false },
+      { cmd: 'glitch.burst', intensity: 2, ms: 900 },
+    ],
   },
   {
     label: 'Fade screen',
-    hint: 'sleeps — moving the mouse wakes it',
+    hint: 'sleep — el mouse la despierta',
     cmds: [{ cmd: 'black', on: true, fadeMs: 1400, wake: true }],
   },
   {
-    label: 'Low Battery',
-    hint: 'notification banner',
-    cmds: [{ cmd: 'battery', style: 'banner' }],
+    label: 'Batería MODAL',
+    hint: 'alerta de batería baja',
+    // Wakes the screen first, so the modal is visible even if nobody moved
+    // the mouse after the fade.
+    cmds: [
+      { cmd: 'black', on: false, fadeMs: 220 },
+      { cmd: 'battery', style: 'modal' },
+    ],
   },
   {
     label: 'Cut to black',
-    hint: 'dead — the mouse will not wake it',
+    hint: 'muerta',
     cmds: [{ cmd: 'black', on: true, fadeMs: 0, wake: false }],
   },
 ];
