@@ -279,6 +279,23 @@ const server = http.createServer((req, res) => {
     serveFile(res, path.join(ROOT, 'public', 'screen.html'));
     return;
   }
+  if (pathname === '/qr') {
+    serveFile(res, path.join(ROOT, 'public', 'qr.html'));
+    return;
+  }
+
+  // The QR page runs on the laptop, so it can't read the phone's address off
+  // its own location — the server is the only one who knows it.
+  if (pathname === '/lan') {
+    const ip = lanIP();
+    const { port } = server.address();
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+    res.end(JSON.stringify({ ip, port, control: `http://${ip}:${port}/control` }));
+    return;
+  }
 
   // Static: /assets/* from assets/, everything else from public/.
   const rel = pathname.replace(/^\//, '');
@@ -332,6 +349,9 @@ function listen(port) {
     console.log(`  │`.padEnd(55) + '│');
     console.log(`  │  PHONE   (same Wi-Fi)`.padEnd(55) + '│');
     console.log(`  │    http://${ip}:${port}/control`.padEnd(55) + '│');
+    console.log(`  │`.padEnd(55) + '│');
+    console.log(`  │  QR      (scan it with the phone)`.padEnd(55) + '│');
+    console.log(`  │    http://localhost:${port}/qr`.padEnd(55) + '│');
     console.log(`  └${line}┘`);
     console.log(`\n  Ctrl+C to stop.\n`);
   });

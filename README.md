@@ -10,9 +10,11 @@ Zero dependencies. No `npm install`, no build step.
 
 1. Copy this whole folder to the laptop that will be on camera.
 2. Make sure that laptop has Node installed (`node -v`). If not: <https://nodejs.org>
-3. Double-click **`start.command`**. It prints two URLs.
+3. Double-click **`start.command`**. It prints the URLs.
 4. On the laptop, open the **SCREEN** URL. Click once to go fullscreen.
-5. On your phone, joined to the **same Wi-Fi**, open the **PHONE** URL.
+5. On your phone, joined to the **same Wi-Fi**, open the **PHONE** URL — or
+   open **`/qr`** on the laptop and scan the code with the phone camera,
+   which saves typing an IP address on set.
 
 ## Before rolling
 
@@ -24,6 +26,20 @@ Zero dependencies. No `npm install`, no build step.
 - Test the connection on the actual network you'll shoot on. Guest and corporate
   Wi-Fi often block device-to-device traffic. If the phone can't reach the laptop,
   start a personal hotspot on the phone and join the laptop to it.
+
+## The QR page
+
+`http://localhost:<port>/qr` on the laptop shows one big QR code for the phone
+remote, with the URL printed under it. Scan it and the phone opens straight
+into the controls — no typing an IP with someone waiting on set.
+
+The code always carries the laptop's **LAN** address, not `localhost`, and the
+page re-checks every few seconds: switch the laptop to the phone's hotspot and
+the code follows it. If the laptop isn't on a network at all, the page says so
+instead of handing you a code that can't be reached.
+
+Its QR encoder is `public/qrcode.js` — byte mode, error correction level M,
+no dependencies like everything else here.
 
 ## Using your own screenshot
 
