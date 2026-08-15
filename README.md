@@ -1,8 +1,10 @@
 # ANTI — pantalla interactiva
 
-A fake Adobe Premiere Pro screen for a shortfilm, driven live from your phone:
-push the render percentage, drain the battery, glitch the picture, fire a
-macOS low-battery warning, cut to black.
+Fake screens for a shortfilm, driven live from your phone: an Adobe Premiere
+Pro render on the laptop — push the percentage, drain the battery, glitch the
+picture, fire a macOS low-battery warning, cut to black — and an iPhone call
+on the actor's own phone, which rings, gets answered on camera and goes dark
+against the ear.
 
 Zero dependencies. No `npm install`, no build step.
 
@@ -15,12 +17,15 @@ Zero dependencies. No `npm install`, no build step.
 5. On your phone, joined to the **same Wi-Fi**, open the **PHONE** URL — or
    open **`/qr`** on the laptop and scan the code with the phone camera,
    which saves typing an IP address on set.
+6. Only if the phone is in the shot: open the **CALL** URL on it, from the
+   same `/qr` page with **Call screen** picked. See *La llamada* below.
 
 ## Before rolling
 
 - Set the phone's auto-lock to **Never** (Settings → Display & Brightness → Auto-Lock).
   The laptop keeps itself awake automatically; the phone can't, because it loads
-  over plain HTTP on the LAN.
+  over plain HTTP on the LAN. This matters twice as much for a phone that's in
+  frame — a prop that locks itself mid-take is a ruined take.
 - Hide the browser toolbar on the laptop (fullscreen does this) and check that the
   small hint box at the bottom has faded — it disappears after 12s or on first click.
 - Test the connection on the actual network you'll shoot on. Guest and corporate
@@ -29,9 +34,11 @@ Zero dependencies. No `npm install`, no build step.
 
 ## The QR page
 
-`http://localhost:<port>/qr` on the laptop shows one big QR code for the phone
-remote, with the URL printed under it. Scan it and the phone opens straight
-into the controls — no typing an IP with someone waiting on set.
+`http://localhost:<port>/qr` on the laptop shows one big QR code, with the URL
+printed under it. Scan it and the phone opens straight into the controls — no
+typing an IP with someone waiting on set. The two buttons above the code pick
+which phone you're setting up: **Remote** (the operator's) or **Call screen**
+(the one that goes in frame).
 
 The code always carries the laptop's **LAN** address, not `localhost`, and the
 page re-checks every few seconds: switch the laptop to the phone's hotspot and
@@ -82,6 +89,78 @@ you know where they land in the shot, e.g.
 { label: 'Picture breaks up', hint: 'sustained glitch',
   cmds: [{ cmd: 'glitch.set', on: true, intensity: 3 }] },
 ```
+
+## La llamada
+
+`/call` is a second prop, for the actor's own phone: an iPhone incoming call
+in Spanish — contact photo and name in the middle, **Rechazar** and
+**Aceptar** at the bottom. Answer it and it becomes the in-call screen with
+the running counter, and a beat later the screen goes black the way it does
+against an ear.
+
+Everything on it is in Spanish because it's the one screen an audience reads.
+The remote that drives it is in English like the rest of the controls.
+
+### Setting it up before the take
+
+Open `/call` on the phone and its settings show first — they only ever appear
+with the phone idle, never during a call:
+
+- **Foto del contacto** — pick it from that phone's photo library. It's
+  square-cropped, shrunk and remembered on the phone. A file dropped at
+  `assets/contacto.jpg` (or `.png`) before starting is used when there's
+  nothing picked; with neither, you get iOS's grey circle with the contact's
+  initials.
+- **Nombre / Debajo** — who's calling, and the small line under it (`móvil`,
+  `iPhone`, a number). Also settable from the remote, and it survives
+  **Reset everything** — like the clock, it's set-up, not take state.
+- **Tono** — a synthesized ringtone, off by default so it can't walk over
+  production sound. Turn it on if the actor needs the cue in their ear.
+- **Sonar ahora** rings the phone from the phone itself, for rehearsing.
+- **Ocultar** blacks the settings out so an idle phone in frame looks like a
+  locked one. Tap the black screen to bring them back.
+
+Then, on the phone: put auto-lock on **Never**, and use **Share → Add to Home
+Screen** and open it from that icon. Standalone like that, Safari's toolbars
+are gone and iOS draws its own real status bar over the top — otherwise the
+page draws a convincing fake one.
+
+### Running it
+
+From the remote, under **Call**: **Ring**, **Answer**, **Hang up**, and the
+two proximity buttons. The natural take is: operator hits **Ring**, the actor
+answers on the phone itself — that's their move, on camera — and the screen
+blanks on its own as it comes up to their ear.
+
+Browsers have no proximity sensor, so that blanking is a timer: it fires
+`0.8s` / `1.5s` / `3s` after the call is answered, or never on **manual**.
+Either way you keep both overrides:
+
+- **the actor** taps the dark screen to light it back up (phone away from the
+  ear), and taps the lit screen to blank it again
+- **the operator** forces it with **To the ear** / **Off the ear**
+
+Hanging up leaves *Llamada finalizada* up for a couple of seconds and then the
+phone goes dark. **Reset call** puts it back to idle for the next take.
+
+The six in-call buttons (silenciar, teclado, altavoz…) are decoration — they
+light up under a finger and do nothing else, which is all they need to do in
+a shot.
+
+### In the cue list
+
+The call runs on the same command bus as everything else, so it can be part
+of the scripted sequence instead of a manual cue. In `CUES` in
+`public/shared.js`:
+
+```js
+{ label: 'Suena el teléfono', hint: 'la atiende el actor',
+  cmds: [{ cmd: 'call.ring' }] },
+```
+
+The commands are `call.ring`, `call.answer`, `call.end`, `call.idle`,
+`call.who` (`{ name, sub }`) and `call.prox`
+(`{ prox: 'near' | 'far' | 'auto', delayMs }`).
 
 ## Render progress
 
@@ -187,6 +266,10 @@ If the phone dies mid-shoot, the laptop responds to keys directly:
 
 Filenames, sequence name, timecode and bin contents are all in one `TEXT` object
 at the top of `public/screen.js`.
+
+The call screen has the same thing at the top of `public/call.js`: `PHONE`
+holds its status-bar battery and signal, the *Llamada finalizada* wording and
+how long it stays up; `ACTIONS` is the six in-call buttons and their labels.
 
 The two alerts are plain markup in `public/screen.html` — search for
 `mac-banner` and `mac-modal`. The modal is in Spanish ("Batería baja en el

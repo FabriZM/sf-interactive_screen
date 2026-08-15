@@ -65,14 +65,18 @@ function apply(msg) {
   const now = Date.now();
   const r = state.render;
   const p = state.power;
+  const c = state.call;
 
   switch (msg.cmd) {
     case 'reset': {
       // The clock is a continuity setting for the whole shoot, not take state
-      // — cue 1 resets before every take and must not wipe it.
+      // — cue 1 resets before every take and must not wipe it. Who's calling
+      // and how fast the phone blanks are set up the same way, once.
       const keptClock = state.clock;
+      const { name, sub, proxDelayMs } = state.call;
       state = structuredClone(DEFAULT_STATE);
       state.clock = keptClock;
+      Object.assign(state.call, { name, sub, proxDelayMs });
       break;
     }
 
@@ -181,6 +185,52 @@ function apply(msg) {
 
     case 'deadbattery':
       state.dead.untilMs = now + Math.max(300, Math.min(20000, Number(msg.ms) || 2600));
+      break;
+
+    // ------------------------------------------------ the actor's phone
+    case 'call.ring':
+      c.status = 'ringing';
+      c.answeredAt = null;
+      c.endedAt = null;
+      c.prox = 'auto';
+      break;
+
+    case 'call.answer':
+      c.status = 'active';
+      c.answeredAt = now;
+      c.endedAt = null;
+      c.prox = 'auto';   // the blanking timer starts from this answer
+      break;
+
+    case 'call.end':
+      if (c.status === 'idle') break;      // nothing to hang up
+      // Never answered? Stamp both, so a declined call still ends cleanly
+      // with a 00:00 counter instead of counting from the epoch.
+      c.answeredAt ??= now;
+      c.status = 'ended';
+      c.endedAt = now;
+      c.prox = 'auto';
+      break;
+
+    case 'call.idle': // back to a dark phone, ready for the next take
+      c.status = 'idle';
+      c.answeredAt = null;
+      c.endedAt = null;
+      c.prox = 'auto';
+      break;
+
+    case 'call.who':
+      if (typeof msg.name === 'string') c.name = msg.name.slice(0, 40);
+      if (typeof msg.sub === 'string') c.sub = msg.sub.slice(0, 40);
+      break;
+
+    case 'call.prox':
+      if ('prox' in msg) {
+        c.prox = ['auto', 'near', 'far'].includes(msg.prox) ? msg.prox : 'auto';
+      }
+      if ('delayMs' in msg) {
+        c.proxDelayMs = msg.delayMs == null ? null : Math.max(0, Number(msg.delayMs));
+      }
       break;
 
     case 'clock.set':
@@ -293,6 +343,10 @@ const server = http.createServer((req, res) => {
     serveFile(res, path.join(ROOT, 'public', 'screen.html'));
     return;
   }
+  if (pathname === '/call') {
+    serveFile(res, path.join(ROOT, 'public', 'call.html'));
+    return;
+  }
   if (pathname === '/qr') {
     serveFile(res, path.join(ROOT, 'public', 'qr.html'));
     return;
@@ -307,7 +361,12 @@ const server = http.createServer((req, res) => {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
     });
-    res.end(JSON.stringify({ ip, port, control: `http://${ip}:${port}/control` }));
+    res.end(JSON.stringify({
+      ip,
+      port,
+      control: `http://${ip}:${port}/control`,
+      call: `http://${ip}:${port}/call`,
+    }));
     return;
   }
 
@@ -363,6 +422,9 @@ function listen(port) {
     console.log(`  │`.padEnd(55) + '│');
     console.log(`  │  PHONE   (same Wi-Fi)`.padEnd(55) + '│');
     console.log(`  │    http://${ip}:${port}/control`.padEnd(55) + '│');
+    console.log(`  │`.padEnd(55) + '│');
+    console.log(`  │  CALL    (the actor's phone, on camera)`.padEnd(55) + '│');
+    console.log(`  │    http://${ip}:${port}/call`.padEnd(55) + '│');
     console.log(`  │`.padEnd(55) + '│');
     console.log(`  │  QR      (scan it with the phone)`.padEnd(55) + '│');
     console.log(`  │    http://localhost:${port}/qr`.padEnd(55) + '│');

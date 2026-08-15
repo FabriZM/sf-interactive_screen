@@ -219,6 +219,8 @@ button:active { background: #2b2b36; }
   min-height: 44px;
   padding: 8px 16px;
 }
+/* the contact name takes whatever the row has left */
+.txt.wide { flex: 1; width: auto; text-align: left; }
 
 .chips { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .chip {
@@ -229,6 +231,7 @@ button:active { background: #2b2b36; }
   border-radius: 10px;
 }
 .chip.on { background: #5b5bd6; border-color: #6f6fe6; color: #fff; }
+.chips.four .chip { flex-basis: 20%; }   /* four across, not three and one */
 
 /* ---------------------------------------------------------------- slider */
 

@@ -135,6 +135,38 @@
   </section>
 
   <section>
+    <h2>Call — the actor's phone</h2>
+    <div class="clock-now"><span id="callnow">—</span><em id="callmode">idle</em></div>
+    <div class="elapsed-row">
+      <input id="callname" class="txt wide" type="text" maxlength="40"
+             placeholder="Nombre" autocomplete="off">
+      <input id="callsub" class="txt" type="text" maxlength="40"
+             placeholder="móvil" autocomplete="off">
+      <button id="callwho">Set</button>
+    </div>
+    <div class="grid g3 sub">
+      <button class="warn" data-cmd='{"cmd":"call.ring"}'>Ring</button>
+      <button data-cmd='{"cmd":"call.answer"}'>Answer</button>
+      <button class="danger" data-cmd='{"cmd":"call.end"}'>Hang up</button>
+    </div>
+    <div class="grid g3 sub">
+      <button data-cmd='{"cmd":"call.prox","prox":"near"}'>To the ear</button>
+      <button data-cmd='{"cmd":"call.prox","prox":"far"}'>Off the ear</button>
+      <button class="ghost" data-cmd='{"cmd":"call.idle"}'>Reset call</button>
+    </div>
+    <p class="note">Opens at <b>/call</b> on the actor's phone. Answering also
+      works on the phone itself — that's the actor's move. The screen blanks
+      on its own that long after the call is answered, the way it would
+      reaching the ear; tapping the dark screen lights it back up.</p>
+    <div class="chips four" id="proxdelay">
+      <button class="chip" data-prox="800">0.8s</button>
+      <button class="chip on" data-prox="1500">1.5s</button>
+      <button class="chip" data-prox="3000">3s</button>
+      <button class="chip" data-prox="off">manual</button>
+    </div>
+  </section>
+
+  <section>
     <h2>Menu bar clock</h2>
     <div class="clock-now"><span id="clocknow">—</span><em id="clockmode">real time</em></div>
     <input id="clockinput" class="dt" type="datetime-local">

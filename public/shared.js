@@ -44,6 +44,19 @@ const DEFAULT_STATE = {
   // The dead-device battery screen. Time-boxed like a glitch burst, so it
   // still ends on time if the screen reloads mid-flash.
   dead: { untilMs: 0 },
+  // The actor's phone, served at /call: a fake iPhone incoming call.
+  call: {
+    status: 'idle',      // 'idle' | 'ringing' | 'active' | 'ended'
+    name: 'Mamá',
+    sub: 'móvil',
+    answeredAt: null,    // epoch ms — the call counter derives from this
+    endedAt: null,       // epoch ms the call was hung up; freezes the counter
+    // Browsers have no proximity sensor, so "at the ear" is a timer: the
+    // screen blanks this long after answering, which is about how long the
+    // phone takes to reach the ear. null = never blank on its own.
+    proxDelayMs: 1500,
+    prox: 'auto',        // 'auto' | 'near' (forced dark) | 'far' (forced lit)
+  },
   clock: {
     mode: 'real',        // 'real' = system clock | 'custom'
     setMs: null,         // the value you typed — never drifts, so "back to
@@ -196,6 +209,26 @@ function glitchActive(glitch, now = Date.now()) {
   return glitch.on || now < glitch.burstUntil;
 }
 
+// Seconds on the in-call counter. Derived from the answer time like every
+// other clock here, so it survives a reload and reads the same on the phone
+// and on the remote. It stops where the call was hung up.
+function callSecs(call, now = Date.now()) {
+  if (call.answeredAt == null) return 0;
+  const end = call.endedAt ?? now;
+  return Math.max(0, (end - call.answeredAt) / 1000);
+}
+
+// Is the phone screen blanked — the black a real phone shows with its
+// proximity sensor covered? Only ever during a live call.
+function callDark(call, now = Date.now()) {
+  if (call.status !== 'active') return false;
+  if (call.prox === 'near') return true;
+  if (call.prox === 'far') return false;
+  return call.proxDelayMs != null
+    && call.answeredAt != null
+    && now >= call.answeredAt + call.proxDelayMs;
+}
+
 // What the menu-bar clock should read: the real time, or a custom one that
 // either ticks forward from where it was set or stays frozen.
 function currentClock(clock, now = Date.now()) {
@@ -210,6 +243,6 @@ function clampPct(p) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     DEFAULT_STATE, CUES, currentPct, displayPct, currentElapsedMs, currentBattery,
-    glitchActive, currentClock, clampPct,
+    glitchActive, callSecs, callDark, currentClock, clampPct,
   };
 }

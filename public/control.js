@@ -3,6 +3,7 @@
 const $ = (id) => document.getElementById(id);
 let state = structuredClone(DEFAULT_STATE);
 let cueIndex = 0;
+let live = false;    // has the server told us the real state yet?
 let fadeMs = 1000;
 let burstMs = 420;
 let dragging = false;
@@ -214,6 +215,40 @@ $('menubar').addEventListener('click', () => send({ cmd: 'menubar', on: !state.m
 pickOne('fades', 'fade', (v) => { fadeMs = Number(v); });
 $('fade').addEventListener('click', () => send({ cmd: 'black', on: true, fadeMs, wake: true }));
 
+// The actor's phone. Who's calling is set-up rather than take state, so the
+// fields are prefilled from the server once and only pushed when you hit Set.
+// Not before the first state message, or they'd fill with the defaults this
+// page starts from and quietly overwrite the real contact on the next Set.
+let callPrefilled = false;
+
+$('callwho').addEventListener('click', () =>
+  send({ cmd: 'call.who', name: $('callname').value, sub: $('callsub').value })
+);
+
+// The blanking delay has an "off" chip, so this row can't use the numeric
+// pickOne/syncChips pair the others share.
+for (const chip of $('proxdelay').children) {
+  chip.addEventListener('click', () => {
+    const v = chip.dataset.prox;
+    send({ cmd: 'call.prox', delayMs: v === 'off' ? null : Number(v) });
+  });
+}
+
+function syncProxChips() {
+  const delay = state.call.proxDelayMs;
+  for (const chip of $('proxdelay').children) {
+    const v = chip.dataset.prox;
+    chip.classList.toggle('on', delay == null ? v === 'off' : Number(v) === delay);
+  }
+}
+
+const CALL_MODE = {
+  idle: 'idle',
+  ringing: 'ringing',
+  active: 'in call',
+  ended: 'hung up',
+};
+
 // Menu bar clock
 const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -277,6 +312,19 @@ function paint() {
   syncChips('gi', 'gi', state.glitch.intensity);
   syncChips('drainrate', 'permin', state.power.drainPerMin);
 
+  const call = state.call;
+  const dark = callDark(call);
+  $('callnow').textContent =
+    call.status === 'idle' ? call.name : `${call.name} · ${fmtHMS(callSecs(call))}`;
+  $('callmode').textContent = dark ? 'to the ear' : CALL_MODE[call.status];
+  $('callnow').parentElement.classList.toggle('custom', call.status !== 'idle');
+  syncProxChips();
+  if (!callPrefilled && live) {
+    callPrefilled = true;
+    $('callname').value = call.name;
+    $('callsub').value = call.sub;
+  }
+
   const custom = state.clock.mode === 'custom';
   const shown = currentClock(state.clock);
   $('clocknow').textContent = new Date(shown).toLocaleString(undefined, {
@@ -301,6 +349,7 @@ function connect() {
   const es = new EventSource('/events');
   es.onmessage = (e) => {
     state = JSON.parse(e.data);
+    live = true;
     document.querySelector('.status').classList.add('live');
     $('conn').textContent = 'connected';
     paint();

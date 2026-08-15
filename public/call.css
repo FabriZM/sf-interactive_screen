@@ -1,0 +1,360 @@
+/* The actor's phone. An iPhone call screen, drawn to be looked at on camera:
+   nothing scrolls, nothing highlights, nothing gives away a web page. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* The dark field a call sits on: a heavily blurred copy of the contact photo
+   when there is one, and iOS's plain graphite gradient when there isn't. */
+.wall {
+  position: fixed;
+  inset: -80px;                 /* overscan, so the blur has no soft edges */
+  z-index: 0;
+  background: radial-gradient(120% 78% at 50% 0%, #2c2c34 0%, #0a0a0d 72%);
+  background-size: cover;
+  background-position: center;
+}
+body.photo .wall {
+  filter: blur(48px) brightness(.38) saturate(1.3);
+  transform: scale(1.08);
+}
+/* A scrim over the photo, so a bright one can't wash out the name or leave
+   the two buttons floating on grey. The filter belongs to .wall itself, so
+   this has to be its own layer rather than a child of it. */
+body.photo::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .5), rgba(0, 0, 0, .25) 42%, rgba(0, 0, 0, .62));
+}
+
+/* ------------------------------------------------------------ status bar */
+
+.sb {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(env(safe-area-inset-top) + 30px);
+  padding: env(safe-area-inset-top) 30px 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+}
+/* Added to the home screen, iOS draws its own status bar over the page. */
+body.standalone .sb,
+body[data-status='idle'] .sb { display: none; }
+
+.sb-right { display: flex; align-items: center; gap: 6px; }
+
+.sb-signal { display: flex; align-items: flex-end; gap: 2px; height: 11px; }
+.sb-signal i { width: 3px; background: #fff; border-radius: 1px; }
+.sb-signal i:nth-child(1) { height: 5px; }
+.sb-signal i:nth-child(2) { height: 7px; }
+.sb-signal i:nth-child(3) { height: 9px; }
+.sb-signal i:nth-child(4) { height: 11px; opacity: .35; }
+
+.sb-wifi { width: 17px; height: 12px; fill: #fff; }
+
+.sb-batt {
+  position: relative;
+  width: 25px;
+  height: 12px;
+  border: 1.1px solid rgba(255, 255, 255, .42);
+  border-radius: 3.5px;
+  padding: 1.4px;
+}
+.sb-batt::after {
+  content: '';
+  position: absolute;
+  right: -3.2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.8px;
+  height: 4px;
+  background: rgba(255, 255, 255, .42);
+  border-radius: 0 1px 1px 0;
+}
+.sb-batt i { display: block; height: 100%; background: #fff; border-radius: 1.8px; }
+
+/* --------------------------------------------------------------- screens */
+
+.scr {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(env(safe-area-inset-top) + 30px) 0 calc(env(safe-area-inset-bottom) + 34px);
+}
+body[data-status='ringing'] #incoming { display: flex; }
+body[data-status='active']  #oncall,
+body[data-status='ended']   #oncall  { display: flex; }
+
+/* contact block — the photo and the name, dead centre while it's ringing */
+.who {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  text-align: center;
+  padding: 0 24px;
+}
+.who.small { flex: 0 0 auto; padding-top: 6vh; }
+
+.avatar {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(180deg, #9a9aa2, #5b5b63);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .45);
+}
+.avatar.big { width: 136px; height: 136px; }
+.avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+body.photo .avatar img { display: block; }
+.avatar .mono {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, .92);
+}
+.avatar.big .mono { font-size: 54px; }
+body.photo .avatar .mono { display: none; }
+
+.name {
+  margin-top: 20px;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -.022em;
+  line-height: 1.12;
+}
+.who.small .name { margin-top: 14px; font-size: 30px; }
+
+.sub {
+  margin-top: 3px;
+  font-size: 18px;
+  color: rgba(255, 255, 255, .62);
+}
+
+.timer {
+  margin-top: 4px;
+  font-size: 19px;
+  color: rgba(255, 255, 255, .72);
+  font-variant-numeric: tabular-nums;
+}
+/* A hung-up call keeps the layout and swaps the counter for the wording iOS
+   leaves on screen for a beat before the phone goes back to sleep. */
+body[data-status='ended'] .timer { color: rgba(255, 255, 255, .55); }
+
+/* ----------------------------------------------------------- the buttons */
+
+.rnd {
+  width: 74px;
+  height: 74px;
+  border: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font: inherit;
+}
+.rnd:active { filter: brightness(.86); }
+.green { background: #34c759; }
+.red   { background: #ff3b30; }
+
+.handset { width: 33px; height: 33px; fill: #fff; }
+.handset.down { transform: rotate(135deg); }
+
+.answer-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 max(46px, 11vw);
+}
+.act { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.act span { font-size: 13px; color: rgba(255, 255, 255, .78); }
+
+/* The green button breathes while it rings — enough to draw the eye to it
+   on a phone held at arm's length, not enough to read as an animation. */
+body[data-status='ringing'] #answer { animation: breathe 1.9s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(52, 199, 89, .5); }
+  50%      { transform: scale(1.06); box-shadow: 0 0 0 16px rgba(52, 199, 89, 0); }
+}
+
+/* in-call keypad: six frosted circles, iOS's own grid */
+.pad {
+  flex: 1;
+  align-self: center;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-content: center;
+  gap: 5vh 34px;
+  width: min(320px, 84vw);
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #fff;
+  font: inherit;
+}
+.tile i {
+  display: grid;
+  place-items: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .18);
+  backdrop-filter: blur(6px);
+}
+.tile svg { width: 30px; height: 30px; fill: #fff; }
+.tile span { font-size: 12.5px; color: rgba(255, 255, 255, .92); }
+.tile.on i { background: #fff; }
+.tile.on svg { fill: #000; }
+
+.end-row { padding-top: 2vh; }
+
+/* ---------------------------------------------------- proximity blackout */
+
+/* A phone against an ear shows nothing at all. Instant, like the real
+   sensor — a fade would read as a web page dimming. */
+.dark {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .09s linear;
+}
+.dark.on { opacity: 1; pointer-events: auto; }
+
+/* --------------------------------------------------------------- ajustes */
+
+.setup {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding: calc(env(safe-area-inset-top) + 26px) 20px calc(env(safe-area-inset-bottom) + 26px);
+  background: #0e0e12;
+}
+body[data-status='idle'].setup-open .setup { display: flex; }
+
+.setup h1 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #6e6e7e;
+  margin-bottom: 4px;
+}
+
+.setup button, .setup input {
+  font: inherit;
+  font-size: 16px;
+  color: #e9e9ef;
+  background: #1e1e26;
+  border: 1px solid #2c2c38;
+  border-radius: 12px;
+  min-height: 54px;
+}
+.setup button:active { background: #2b2b36; }
+.setup .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.setup .primary {
+  background: linear-gradient(160deg, #5b5bd6, #3f3fa8);
+  border: none;
+  font-size: 18px;
+  font-weight: 600;
+  min-height: 62px;
+}
+.setup .tog.on { background: #5b5bd6; border-color: #6f6fe6; color: #fff; }
+
+.pick {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 12px 14px;
+  text-align: left;
+}
+.pick .avatar { grid-row: span 2; width: 54px; height: 54px; box-shadow: none; }
+.pick .avatar .mono { font-size: 22px; }
+.pick b { font-size: 15px; font-weight: 600; align-self: end; }
+.pick small { font-size: 12.5px; color: #7a7a88; align-self: start; }
+
+.field { display: flex; align-items: center; gap: 12px; }
+.field span {
+  flex: none;
+  width: 62px;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #6e6e7e;
+}
+.field input { flex: 1; min-width: 0; padding: 8px 14px; }
+
+.setup .note {
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #7a7a88;
+}
+.setup .note b { color: #a9a9ba; font-weight: 600; }
+
+/* Connection dot, same as the laptop screen: too small to read on camera. */
+.conn-dot {
+  position: fixed;
+  right: 2px;
+  bottom: 2px;
+  z-index: 200;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ff3b30;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.conn-dot.show { opacity: .85; }
