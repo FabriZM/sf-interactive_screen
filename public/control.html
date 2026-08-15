@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e0e12">
+<title>ANTI - Remote</title>
+<link rel="stylesheet" href="/control.css">
+</head>
+<body>
+
+<header class="bar">
+  <div class="status"><i id="dot"></i><span id="conn">connecting…</span></div>
+  <div class="readout">
+    <span class="ro"><b id="pct">0</b><small>%</small></span>
+    <span class="ro ro-batt"><b id="battpct">0</b><small>%</small></span>
+  </div>
+</header>
+
+<main>
+
+  <section class="cue">
+    <button id="cue" class="cue-btn">
+      <span class="cue-step">CUE 1</span>
+      <span class="cue-label">Render climbing</span>
+      <span class="cue-hint">12% and rising</span>
+    </button>
+    <div class="cue-row">
+      <button id="cue-back" class="mini">← back</button>
+      <div id="cue-pips" class="pips"></div>
+      <button id="cue-reset" class="mini">reset</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Render</h2>
+    <div class="slider-wrap">
+      <input id="slider" class="slider" type="range" min="0" max="100" step="0.5" value="0">
+      <span id="sliderval" class="slider-val">0%</span>
+    </div>
+    <div class="grid g3">
+      <button data-cmd='{"cmd":"render.play"}'>▶ Play</button>
+      <button data-cmd='{"cmd":"render.pause"}'>❚❚ Pause</button>
+      <button id="stall" class="tog">Stall</button>
+    </div>
+    <div class="chips" id="jumps"></div>
+    <div class="grid g4 sub">
+      <button data-cmd='{"cmd":"render.rate","rate":0.4}'>slow</button>
+      <button data-cmd='{"cmd":"render.rate","rate":1.4}'>normal</button>
+      <button data-cmd='{"cmd":"render.rate","rate":4}'>fast</button>
+      <button id="showdlg" class="tog">Dialog</button>
+    </div>
+
+    <div class="elapsed-row sub">
+      <span class="elapsed-label">Elapsed</span>
+      <span id="elapsednow" class="elapsed-now">00:00:00</span>
+      <input id="elapsedinput" class="txt" type="text" inputmode="numeric"
+             placeholder="mm:ss" autocomplete="off">
+      <button id="elapsedset">Set</button>
+    </div>
+    <p class="note">Jumps the elapsed clock to that value, then keeps
+      counting up from there — it doesn't reset on its own.</p>
+    <div class="chips" id="elapsedjumps">
+      <button class="chip" data-esecs="0">0:00</button>
+      <button class="chip" data-esecs="300">5:00</button>
+      <button class="chip" data-esecs="900">15:00</button>
+      <button class="chip" data-esecs="2700">45:00</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Glitch</h2>
+    <div class="grid g2">
+      <button id="burst" class="glitch-btn">⚡ Glitch burst</button>
+      <button id="hold" class="tog">Hold glitch</button>
+    </div>
+    <div class="chips" id="gi">
+      <button class="chip" data-gi="1">subtle</button>
+      <button class="chip on" data-gi="2">medium</button>
+      <button class="chip" data-gi="3">heavy</button>
+    </div>
+    <div class="chips" id="burstlen">
+      <button class="chip" data-ms="150">flash</button>
+      <button class="chip on" data-ms="420">short</button>
+      <button class="chip" data-ms="1200">long</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Battery level</h2>
+    <div class="slider-wrap">
+      <input id="battslider" class="slider" type="range" min="0" max="100" step="1" value="62">
+      <span id="battsliderval" class="slider-val">62%</span>
+    </div>
+    <div class="chips" id="battjumps"></div>
+    <div class="grid g2 sub">
+      <button id="drain" class="tog">Drain</button>
+      <button data-cmd='{"cmd":"power.drain","on":false}'>Hold level</button>
+    </div>
+    <div class="chips" id="drainrate">
+      <button class="chip" data-permin="3">slow</button>
+      <button class="chip on" data-permin="12">medium</button>
+      <button class="chip" data-permin="60">fast</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Low battery alert</h2>
+    <div class="grid g3">
+      <button class="warn" data-cmd='{"cmd":"battery","style":"banner"}'>Banner</button>
+      <button class="warn" data-cmd='{"cmd":"battery","style":"modal"}'>Modal</button>
+      <button data-cmd='{"cmd":"battery","style":"none"}'>Dismiss</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Black</h2>
+    <div class="grid g2">
+      <button class="danger" data-cmd='{"cmd":"black","on":true,"fadeMs":0,"wake":false}'>Cut to black</button>
+      <button class="danger" id="fade">Fade screen</button>
+    </div>
+    <p class="note"><b>Fade</b> sleeps the screen — moving the mouse wakes it.
+      <b>Cut</b> is dead and stays dead; pressing <b>delete</b> on the laptop
+      flashes the dead-battery screen.</p>
+    <div class="chips" id="fades">
+      <button class="chip" data-fade="300">0.3s</button>
+      <button class="chip on" data-fade="1400">1.4s</button>
+      <button class="chip" data-fade="3000">3s</button>
+    </div>
+    <div class="grid g2">
+      <button data-cmd='{"cmd":"deadbattery","ms":2600}'>Dead battery</button>
+      <button data-cmd='{"cmd":"black","on":false,"fadeMs":600}'>Restore screen</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Menu bar clock</h2>
+    <div class="clock-now"><span id="clocknow">—</span><em id="clockmode">real time</em></div>
+    <input id="clockinput" class="dt" type="datetime-local">
+    <div class="grid g2">
+      <button id="clockset">Set</button>
+      <button id="clockreset">Back to set time</button>
+    </div>
+    <div class="grid g2 sub">
+      <button id="clockrun" class="tog">Running</button>
+      <button id="clockreal">Use real time</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Scene</h2>
+    <div class="grid g3">
+      <button data-cmd='{"cmd":"bg","bg":"fake"}'>Fake UI</button>
+      <button data-cmd='{"cmd":"bg","bg":"image"}'>Screenshot</button>
+      <button id="menubar" class="tog">Menu bar</button>
+    </div>
+    <div class="grid g1 sub">
+      <button id="reset" class="ghost">Reset everything</button>
+    </div>
+  </section>
+
+</main>
+
+<script src="/shared.js"></script>
+<script src="/control.js"></script>
+</body>
+</html>

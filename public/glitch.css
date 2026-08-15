@@ -1,0 +1,196 @@
+/* Signal-failure glitch, tuned to read on camera.
+
+   The tear bands are solid fills in blend modes, not backdrop-filters.
+   backdrop-filter samples the backdrop *behind the element at its current
+   position*, so a translated band drags its sampling region along with it and
+   can only recolour a strip — it can never displace the picture. `difference`
+   against white is a hard per-pixel invert of that strip, which reads as a
+   real tear over both the CSS fake UI and a dropped screenshot.
+
+   These layers are body-level children (see screen.html): mix-blend-mode
+   composites against the nearest stacking context, so a wrapper would
+   isolate them from the stage and blend them against nothing. */
+
+#stage { position: fixed; inset: 0; }
+
+.gl {
+  position: fixed;
+  z-index: 80;            /* above the alerts, below #black */
+  pointer-events: none;
+  display: none;
+}
+body.glitching .gl { display: block; }
+
+/* Intensity, as one knob every rule below reads. */
+body              { --g: 1.2; }
+body[data-gi='1'] { --g: .6; }
+body[data-gi='2'] { --g: 1.2; }
+body[data-gi='3'] { --g: 2; }
+
+/* ------------------------------------------------------------ whole-frame */
+
+/* Two animations: one owns transform, one owns filter. */
+body.glitching #stage {
+  animation: jitter .28s steps(1) infinite, chroma 1.25s steps(1) infinite;
+}
+
+@keyframes jitter {
+  0%, 55%   { transform: none; }
+  57%       { transform: translate(calc(var(--g) * -22px), calc(var(--g) * 7px)) skewX(calc(var(--g) * -3.4deg)); }
+  61%       { transform: translate(calc(var(--g) * 17px), calc(var(--g) * -6px)) skewX(calc(var(--g) * 2.6deg)); }
+  65%       { transform: translate(0, calc(var(--g) * 11px)) scale(calc(1 + var(--g) * .016)); }
+  69%       { transform: translate(calc(var(--g) * -10px), 0) skewY(calc(var(--g) * 1deg)); }
+  72%, 100% { transform: none; }
+}
+
+@keyframes chroma {
+  0%, 40%   { filter: none; }
+  42%, 46%  { filter: hue-rotate(calc(var(--g) * 55deg)) saturate(calc(1 + var(--g) * 1.9)) contrast(calc(1 + var(--g) * .35)); }
+  47%, 76%  { filter: none; }
+  78%, 80%  { filter: invert(1) hue-rotate(180deg); }
+  81%, 92%  { filter: none; }
+  93%, 95%  { filter: brightness(calc(1 + var(--g) * .7)) saturate(0); }
+  96%, 100% { filter: none; }
+}
+
+/* ------------------------------------------------------------ tear bands */
+
+.g-band {
+  left: -20%;
+  right: -20%;
+  opacity: 0;
+  background: #fff;
+  mix-blend-mode: difference;   /* hard invert of the strip */
+}
+.g-band.hot  { background: #ff2d55; mix-blend-mode: exclusion; }
+.g-band.cold { background: #24d0ff; mix-blend-mode: exclusion; }
+
+.b1 { top:  7%; height: 5.5%; }
+.b2 { top: 19%; height: 2.2%; }
+.b3 { top: 30%; height: 8%;   }
+.b4 { top: 44%; height: 3%;   }
+.b5 { top: 53%; height: 6.5%; }
+.b6 { top: 66%; height: 2.6%; }
+.b7 { top: 76%; height: 7%;   }
+.b8 { top: 88%; height: 4.2%; }
+
+body.glitching .b1 { animation: tear-a .53s steps(1) infinite; }
+body.glitching .b2 { animation: tear-b .37s steps(1) infinite .04s; }
+body.glitching .b3 { animation: tear-a .71s steps(1) infinite .11s; }
+body.glitching .b4 { animation: tear-b .29s steps(1) infinite .07s; }
+body.glitching .b5 { animation: tear-a .43s steps(1) infinite .19s; }
+body.glitching .b6 { animation: tear-b .61s steps(1) infinite .02s; }
+body.glitching .b7 { animation: tear-a .33s steps(1) infinite .26s; }
+body.glitching .b8 { animation: tear-b .47s steps(1) infinite .15s; }
+
+/* Opacity is scaled by --g so `subtle` stays subtle and `heavy` is opaque. */
+@keyframes tear-a {
+  0%,   5%  { opacity: 0; }
+  6%,  15%  { opacity: min(1, calc(var(--g) * .62)); transform: translateX(calc(var(--g) * -78px)); }
+  16%, 30%  { opacity: 0; }
+  31%, 39%  { opacity: min(1, calc(var(--g) * .5));  transform: translateX(calc(var(--g) * 62px)); }
+  40%, 61%  { opacity: 0; }
+  62%, 69%  { opacity: min(1, calc(var(--g) * .75)); transform: translateX(calc(var(--g) * -124px)); }
+  70%, 100% { opacity: 0; }
+}
+
+@keyframes tear-b {
+  0%,  11%  { opacity: 0; }
+  12%, 19%  { opacity: min(1, calc(var(--g) * .55)); transform: translateX(calc(var(--g) * 96px)); }
+  20%, 47%  { opacity: 0; }
+  48%, 54%  { opacity: min(1, calc(var(--g) * .68)); transform: translateX(calc(var(--g) * -54px)); }
+  55%, 82%  { opacity: 0; }
+  83%, 88%  { opacity: min(1, calc(var(--g) * .8));  transform: translateX(calc(var(--g) * 140px)); }
+  89%, 100% { opacity: 0; }
+}
+
+/* --------------------------------------------------------- vsync roll bar */
+
+.g-roll {
+  left: -10%;
+  right: -10%;
+  height: 13%;
+  opacity: 0;
+  mix-blend-mode: exclusion;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, .85) 45%, rgba(160, 200, 255, .6) 70%, transparent);
+}
+body.glitching .g-roll { animation: roll 1.9s linear infinite; }
+@keyframes roll {
+  0%   { top: -15%; opacity: min(.9, calc(var(--g) * .5)); }
+  100% { top: 103%; opacity: min(.9, calc(var(--g) * .5)); }
+}
+
+/* ------------------------------------------------------- chromatic fringe */
+
+.g-tint {
+  inset: 0;
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+.g-r { background: #ff0040; }
+.g-b { background: #00a0ff; }
+
+body.glitching .g-r { animation: fringe-r .67s steps(1) infinite; }
+body.glitching .g-b { animation: fringe-b .67s steps(1) infinite .03s; }
+
+@keyframes fringe-r {
+  0%,  13%  { opacity: 0; }
+  14%, 23%  { opacity: min(.65, calc(var(--g) * .34)); transform: translateX(calc(var(--g) * -18px)); }
+  24%, 57%  { opacity: 0; }
+  58%, 66%  { opacity: min(.65, calc(var(--g) * .26)); transform: translateX(calc(var(--g) * 13px)); }
+  67%, 100% { opacity: 0; }
+}
+@keyframes fringe-b {
+  0%,  17%  { opacity: 0; }
+  18%, 27%  { opacity: min(.65, calc(var(--g) * .32)); transform: translateX(calc(var(--g) * 18px)); }
+  28%, 61%  { opacity: 0; }
+  62%, 70%  { opacity: min(.65, calc(var(--g) * .24)); transform: translateX(calc(var(--g) * -13px)); }
+  71%, 100% { opacity: 0; }
+}
+
+/* -------------------------------------------------------------- hard flash */
+
+.g-flash {
+  inset: 0;
+  opacity: 0;
+  background: #fff;
+  mix-blend-mode: difference;   /* full-frame invert */
+}
+body.glitching .g-flash { animation: flash 1.55s steps(1) infinite; }
+@keyframes flash {
+  0%,  35%  { opacity: 0; }
+  36%, 37%  { opacity: min(1, calc(var(--g) * .85)); }
+  38%, 79%  { opacity: 0; }
+  80%, 81%  { opacity: min(1, calc(var(--g) * .6)); }
+  82%, 100% { opacity: 0; }
+}
+
+/* --------------------------------------------------------- scanlines/noise */
+
+.g-scan {
+  left: 0; right: 0; top: -100%; bottom: -100%;
+  opacity: min(.6, calc(var(--g) * .3));
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, .7) 0 1px, transparent 1px 3px);
+}
+body.glitching .g-scan { animation: scan 4s linear infinite; }
+@keyframes scan { to { transform: translateY(33.333%); } }
+
+.g-noise {
+  inset: -8%;
+  opacity: min(.5, calc(var(--g) * .26));
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)' opacity='.6'/></svg>");
+}
+body.glitching .g-noise { animation: noise .09s steps(1) infinite; }
+@keyframes noise {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-4%, 3%); }
+  50%  { transform: translate(3%, -4%); }
+  75%  { transform: translate(-3%, -3%); }
+}
+
+/* Motion-sensitive viewers: the shortfilm still needs the effect on camera,
+   so only the highest-frequency layers are calmed. */
+@media (prefers-reduced-motion: reduce) {
+  body.glitching .g-noise { animation-duration: .4s; }
+  body.glitching .g-flash { animation: none; }
+}

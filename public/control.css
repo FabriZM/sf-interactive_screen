@@ -1,0 +1,296 @@
+/* Phone remote. Big targets, dark, no accidental zoom or text selection. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: #0e0e12;
+  color: #e9e9ef;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 16px;
+  user-select: none;
+  touch-action: manipulation;
+  padding-bottom: env(safe-area-inset-bottom);
+  min-height: 100vh;
+}
+
+/* ------------------------------------------------------------------ bar */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 12px) 18px 12px;
+  background: rgba(14, 14, 18, .9);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid #23232c;
+}
+.status { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #9a9aa8; }
+.status i {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: #ff453a;
+  transition: background .2s;
+}
+.status.live i { background: #32d74b; }
+.readout { font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 12px; }
+.readout b { font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
+.readout small { font-size: 15px; color: #7a7a88; margin-left: 2px; }
+
+/* second readout is the battery — smaller, and it goes red when low */
+.ro-batt b { font-size: 20px; color: #9a9aa8; }
+.ro-batt small { font-size: 12px; }
+.ro-batt::before {
+  content: '';
+  display: inline-block;
+  width: 15px; height: 8px;
+  margin-right: 5px;
+  border: 1.2px solid #6e6e7e;
+  border-radius: 2px;
+}
+.ro-batt.low b, .ro-batt.low small { color: #ff453a; }
+.ro-batt.low::before { border-color: #ff453a; background: #ff453a; }
+
+main { padding: 16px 14px 40px; display: flex; flex-direction: column; gap: 22px; }
+
+section h2 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #6e6e7e;
+  margin: 0 4px 9px;
+}
+
+/* ----------------------------------------------------------------- cue */
+
+.cue-btn {
+  width: 100%;
+  min-height: 108px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 18px 22px;
+  border: none;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #5b5bd6, #3f3fa8);
+  color: #fff;
+  text-align: left;
+  font: inherit;
+  box-shadow: 0 8px 24px rgba(80, 80, 220, .28);
+}
+.cue-btn:active { transform: scale(.985); filter: brightness(1.12); }
+.cue-btn.done { background: linear-gradient(160deg, #3a3a46, #2a2a33); box-shadow: none; }
+.cue-step  { font-size: 11px; font-weight: 700; letter-spacing: .14em; opacity: .72; }
+.cue-label { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+.cue-hint  { font-size: 13px; opacity: .68; }
+
+.cue-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.mini {
+  font: inherit;
+  font-size: 13px;
+  color: #8a8a99;
+  background: none;
+  border: none;
+  padding: 8px 6px;
+}
+.pips { display: flex; gap: 6px; }
+.pips i { width: 7px; height: 7px; border-radius: 50%; background: #33333f; }
+.pips i.on { background: #5b5bd6; }
+
+/* --------------------------------------------------------------- buttons */
+
+.grid { display: grid; gap: 8px; }
+.g1 { grid-template-columns: 1fr; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+.sub { margin-top: 8px; }
+
+button {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: #e9e9ef;
+  background: #1e1e26;
+  border: 1px solid #2c2c38;
+  border-radius: 12px;
+  min-height: 56px;
+  padding: 8px 6px;
+}
+button:active { background: #2b2b36; }
+
+.sub button { min-height: 46px; font-size: 14px; }
+
+.warn   { background: #3a2c14; border-color: #5c4520; color: #ffcf70; }
+.glitch-btn { background: #143038; border-color: #1f5866; color: #5fe3ff; font-weight: 600; }
+.glitch-btn:active { background: #1f5866; color: #fff; }
+.danger { background: #35161a; border-color: #5c2229; color: #ff8b93; }
+.ghost  { background: none; border-color: #2c2c38; color: #8a8a99; }
+
+.tog.on { background: #5b5bd6; border-color: #6f6fe6; color: #fff; }
+
+.note {
+  margin: 9px 4px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #7a7a88;
+}
+.note b { color: #a9a9ba; font-weight: 600; }
+
+/* clock */
+.clock-now {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: #16161d;
+  border: 1px solid #2c2c38;
+}
+.clock-now span { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.clock-now em {
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #6e6e7e;
+}
+.clock-now.custom em { color: #8f8ff2; }
+
+.dt {
+  width: 100%;
+  min-height: 56px;
+  margin-bottom: 8px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 16px;
+  color: #e9e9ef;
+  background: #1e1e26;
+  border: 1px solid #2c2c38;
+  border-radius: 12px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.dt::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .55; }
+
+/* elapsed-time row: live readout + a small mm:ss field, inline */
+.elapsed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.elapsed-label {
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #6e6e7e;
+  flex: none;
+}
+.elapsed-now {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #cfcfd6;
+  flex: none;
+  margin-right: auto;
+}
+.txt {
+  width: 84px;
+  min-height: 44px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: #e9e9ef;
+  background: #1e1e26;
+  border: 1px solid #2c2c38;
+  border-radius: 10px;
+}
+.elapsed-row button {
+  flex: none;
+  min-height: 44px;
+  padding: 8px 16px;
+}
+
+.chips { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.chip {
+  flex: 1 1 28%;   /* three per row, so six jump chips make a tidy 3×2 */
+  min-width: 0;
+  min-height: 44px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.chip.on { background: #5b5bd6; border-color: #6f6fe6; color: #fff; }
+
+/* ---------------------------------------------------------------- slider */
+
+/* Both sliders show a filled track so the level is readable at a glance from
+   across the room. --fill is written from live state; --bar/--thumb make the
+   two unmistakable: render is violet, battery is white (red when low). */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 52px;
+  background: none;
+  margin-bottom: 4px;
+  --fill: 0%;
+  --bar: #5b5bd6;
+  --thumb: #8f8ff2;
+}
+
+#battslider { --bar: #f2f2f7; --thumb: #fff; }
+#battslider.low { --bar: #ff453a; --thumb: #ff6961; }
+
+.slider::-webkit-slider-runnable-track {
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid #2c2c38;
+  background: linear-gradient(90deg, var(--bar) 0 var(--fill), #1a1a22 var(--fill) 100%);
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 44px;
+  margin-top: 3px;
+  border-radius: 7px;
+  background: var(--thumb);
+  border: 1px solid rgba(0, 0, 0, .45);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .6);
+}
+.slider::-moz-range-track {
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid #2c2c38;
+  background: linear-gradient(90deg, var(--bar) 0 var(--fill), #1a1a22 var(--fill) 100%);
+}
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 44px;
+  border-radius: 7px;
+  background: var(--thumb);
+  border: 1px solid rgba(0, 0, 0, .45);
+}
+
+/* The value, printed on the bar itself */
+.slider-wrap { position: relative; }
+.slider-val {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #8a8a99;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
+}
