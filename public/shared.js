@@ -47,8 +47,8 @@ const DEFAULT_STATE = {
   // The actor's phone, served at /call: a fake iPhone incoming call.
   call: {
     status: 'idle',      // 'idle' | 'ringing' | 'active' | 'ended'
-    name: 'Mamá',
-    sub: 'móvil',
+    name: 'Fernando JEFE',
+    sub: 'cellular',  // subtitle under the name
     answeredAt: null,    // epoch ms — the call counter derives from this
     endedAt: null,       // epoch ms the call was hung up; freezes the counter
     // Browsers have no proximity sensor, so "at the ear" is a timer: the
