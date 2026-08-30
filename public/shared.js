@@ -8,7 +8,7 @@ const DEFAULT_STATE = {
     visible: true,
     basePct: 66,         // percentage at the moment runningSince was set
     // The bar only ever creeps on camera — no cue moves it while it's visible.
-    // Paced so 66% at the start reads ~93% two minutes in, when cue 3 lands;
+    // Paced so 66% at the start reads ~93% two minutes in, when the phone rings;
     // the chunk easing in displayPct() does the visible work.
     rate: 0.218,         // percent per second while running
     // A one-shot "catch up to this mark, then carry on creeping": while the
@@ -89,7 +89,7 @@ const CUES = [
     ],
   },
   {
-    label: 'Batería 32%',
+    label: 'Glitch',
     hint: 'salta a 32% + glitch fuerte',
     cmds: [
       { cmd: 'power.set', pct: 32 },
@@ -98,15 +98,12 @@ const CUES = [
     ],
   },
   {
-    label: 'Batería 17%',
-    hint: 'salta a 17% + glitch corto',
+    label: 'Llamada',
+    hint: 'suena el teléfono del actor',
     // Lands ~2 min in, where the creep has the bar at ~93% on its own — the
     // cue doesn't touch it, so nothing jumps while the screen is visible.
-    cmds: [
-      { cmd: 'power.set', pct: 17 },
-      { cmd: 'glitch.set', on: false },
-      { cmd: 'glitch.burst', intensity: 2, ms: 900 },
-    ],
+    // Only rings: answering is the actor's move, on camera.
+    cmds: [{ cmd: 'call.ring' }],
   },
   {
     label: 'Fade screen',

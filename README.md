@@ -67,13 +67,14 @@ the **Menu bar** overlay *off* — your screenshot already has one.
 **CUE** is the main control: one big button that walks the scripted sequence.
 Rehearse it once, then during a take you only ever press that one button.
 
-1. **Render climbing** — 12% and rising
-2. **Stall** — bar freezes, clock keeps running
-3. **Fade screen** — the screen goes to sleep
-4. **Low Battery** — notification banner
-5. **Cut to black** — dead
+1. **Renderizando** — arranca en 66% y sube lento
+2. **Batería 32%** — salta a 32% + glitch fuerte
+3. **Llamada** — suena el teléfono del actor
+4. **Fade screen** — the screen goes to sleep
+5. **Batería MODAL** — la alerta de batería baja
+6. **Cut to black** — dead
 
-Cue 3 fades the screen and cue 4 fires the banner while it's still dark, so
+Cue 4 fades the screen and cue 5 fires the modal while it's still dark, so
 the natural beat is: screen sleeps → the actor moves the mouse → it wakes with
 the low-battery warning already up → cut to black.
 
@@ -81,9 +82,8 @@ Everything else is manual override: a percentage slider, play/pause/stall,
 speed, glitch, battery level and drain, both battery alert styles, cut/fade
 to black, and reset between takes.
 
-Cues live in `public/shared.js` — edit `CUES` to match your shot list. The
-default four don't include glitch or battery drain; add them as steps when
-you know where they land in the shot, e.g.
+Cues live in `public/shared.js` — edit `CUES` to match your shot list. Add
+steps when you know where they land in the shot, e.g.
 
 ```js
 { label: 'Battery dying', hint: 'drains from 8%',
@@ -159,12 +159,13 @@ a shot.
 
 ### In the cue list
 
-The call runs on the same command bus as everything else, so it can be part
-of the scripted sequence instead of a manual cue. In `CUES` in
-`public/shared.js`:
+The call runs on the same command bus as everything else, so it's part of the
+scripted sequence rather than a manual cue — cue 3 in `CUES`
+(`public/shared.js`) only rings, because answering is the actor's move on
+camera:
 
 ```js
-{ label: 'Suena el teléfono', hint: 'la atiende el actor',
+{ label: 'Llamada', hint: 'suena el teléfono del actor',
   cmds: [{ cmd: 'call.ring' }] },
 ```
 
